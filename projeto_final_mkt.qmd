@@ -25,15 +25,15 @@ vendas <- read.csv("data.csv")
 
 Exploração Inicial da Base:
 
--   recency: Número de meses desde a última compra do cliente.
--   history: Valor total gasto pelo cliente até agora.
--   used_discount: Indica se o cliente usou um cupom de desconto em compras anteriores (1 para sim, 0 para não).
--   used_bogo: Indica se o cliente utilizou uma promoção do tipo "compre um, leve outro" (BOGO) em compras anteriores (1 - para sim, 0 para não).
--   zip_code: Categoria do código postal do cliente (Surburban, Rural, Urban).
--   is_referral: Indica se o cliente foi referido por outro cliente (1 para sim, 0 para não).
--   channel: Canal pelo qual o cliente realizou a última compra (Phone, Web).
--   offer: Tipo de oferta que foi enviada ao cliente (Buy One Get One, No Offer, Discount).
--   conversion: Indica se a campanha de marketing resultou em uma conversão/purchase (1 para sim, 0 para não).
+-   **recency**: Número de meses desde a última compra do cliente.
+-   **history**: Valor total gasto pelo cliente até agora.
+-   **used_discount**: Indica se o cliente usou um cupom de desconto em compras anteriores (1 para sim, 0 para não).
+-   **used_bogo**: Indica se o cliente utilizou uma promoção do tipo "compre um, leve outro" (BOGO) em compras anteriores (1 - para sim, 0 para não).
+-   **zip_code**: Categoria do código postal do cliente (Surburban, Rural, Urban).
+-   **is_referral**: Indica se o cliente foi referido por outro cliente (1 para sim, 0 para não).
+-   **channel**: Canal pelo qual o cliente realizou a última compra (Phone, Web).
+-   **offer**: Tipo de oferta que foi enviada ao cliente (Buy One Get One, No Offer, Discount).
+-   **conversion**: Indica se a campanha de marketing resultou em uma conversão/purchase (1 para sim, 0 para não).
 
 ```{r, include=FALSE}
 vendas %>% skim()
@@ -42,3 +42,46 @@ vendas %>% skim()
 ```{r}
 vendas %>% head()
 ```
+Vamos analisar a distribuição das características dos clientes:
+
+```{r}
+# Criar uma função auxiliar para adicionar porcentagens aos gráficos de barra
+add_percentages <- function(ggplot_object, data) {
+  ggplot_object +
+    geom_text(stat = 'count', aes(label = scales::percent(..count../sum(..count..))), 
+              vjust = -0.5, color = "black")
+}
+```
+
+Distribuição por zona (zip code):
+
+```{r}
+# Gráfico de barras para 'zip_code'
+gg_zip_code <- vendas %>%
+  ggplot(aes(x = zip_code, fill = zip_code)) +
+  geom_bar() +
+  labs(title = "Distribuição dos Clientes por Zip Code",
+       x = "Zip Code",
+       y = "Contagem") +
+  scale_fill_manual(values = c("Surburban" = "#FFD700", "Rural" = "#4CAF50", "Urban" = "#2196F3"))
+
+gg_zip_code <- add_percentages(gg_zip_code, vendas)
+print(gg_zip_code)
+```
+
+Distribuição por canal de compra:
+
+```{r}
+# Gráfico de barras para 'channel'
+gg_channel <- vendas %>%
+  ggplot(aes(x = channel, fill = channel)) +
+  geom_bar() +
+  labs(title = "Distribuição dos Canais de Compra",
+       x = "Canal",
+       y = "Contagem") +
+  scale_fill_manual(values = c("Phone" = "#FF5722", "Web" = "#3F51B5"))
+
+gg_channel <- add_percentages(gg_channel, vendas)
+print(gg_channel)
+```
+
