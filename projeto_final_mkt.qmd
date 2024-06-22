@@ -42,9 +42,11 @@ vendas %>% skim()
 ```{r}
 vendas %>% head()
 ```
-Vamos analisar a distribuição das características dos clientes:
+## Vamos analisar a distribuição das características dos clientes:
 
-```{r}
+Análise demográfica - Temos apenas 2 características demográficas: 'zip_code' e 'channel'.
+
+```{r, include=FALSE}
 # Criar uma função auxiliar para adicionar porcentagens aos gráficos de barra
 add_percentages <- function(ggplot_object, data) {
   ggplot_object +
@@ -53,7 +55,7 @@ add_percentages <- function(ggplot_object, data) {
 }
 ```
 
-Distribuição por zona (zip code):
+### Distribuição por zona (zip code):
 
 ```{r}
 # Gráfico de barras para 'zip_code'
@@ -69,7 +71,7 @@ gg_zip_code <- add_percentages(gg_zip_code, vendas)
 print(gg_zip_code)
 ```
 
-Distribuição por canal de compra:
+### Distribuição por canal de compra:
 
 ```{r}
 # Gráfico de barras para 'channel'
@@ -79,9 +81,129 @@ gg_channel <- vendas %>%
   labs(title = "Distribuição dos Canais de Compra",
        x = "Canal",
        y = "Contagem") +
-  scale_fill_manual(values = c("Phone" = "#FF5722", "Web" = "#3F51B5"))
+  scale_fill_manual(values = c("Phone" = "#FF5722", "Web" = "#3F51B5", "Multichannel" = "#94928b"))
 
 gg_channel <- add_percentages(gg_channel, vendas)
 print(gg_channel)
 ```
 
+### Distribuição por tipo de oferta:
+
+```{r}
+# Gráfico de barras para 'offer'
+gg_offer <- vendas %>%
+  ggplot(aes(x = offer, fill = offer)) +
+  geom_bar() +
+  labs(title = "Distribuição dos Tipos de Oferta",
+       x = "Oferta",
+       y = "Contagem") +
+  scale_fill_manual(values = c("Buy One Get One" = "#9C27B0", "No Offer" = "#00BCD4", "Discount" = "#E91E63"))
+
+gg_offer <- add_percentages(gg_offer, vendas)
+print(gg_offer)
+```
+
+Vemos que a distribuição das amostras está distribuída igualmente entre os 3 tipos de oferta (BOGO, No Offer, Discount).
+
+### Vamos verificar agora se a distribuição demográfica entre cada grupo de oferta é similar:
+
+```{r}
+# Gráfico de barras para 'zip_code' por cada grupo de 'offer'
+gg_zip_offer <- vendas %>%
+  ggplot(aes(x = zip_code, fill = zip_code)) +
+  geom_bar(position = position_dodge()) +
+  facet_wrap(~ offer, scales = "free_y") + # Cada painel representa um tipo de oferta
+  labs(title = "Distribuição de Zip Code por Tipo de Oferta",
+       x = "Zip Code",
+       y = "Contagem") +
+  scale_fill_manual(values = c("Surburban" = "#FFD700", "Rural" = "#4CAF50", "Urban" = "#2196F3")) +
+  theme_minimal()
+
+# Adicionando porcentagens aos gráficos
+gg_zip_offer <- gg_zip_offer +
+  geom_text(stat = 'count', aes(label = scales::percent(..count../sum(..count..), accuracy = 0.1)),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3)
+
+print(gg_zip_offer)
+```
+
+Verificamos que a distribuição de 'Área' é similar entre os grupos de oferta.
+Logo esse fator n deve afetar a amostragem.
+
+```{r}
+# Gráfico de barras para 'channel' por cada grupo de 'offer'
+gg_zip_offer <- vendas %>%
+  ggplot(aes(x = channel, fill = channel)) +
+  geom_bar(position = position_dodge()) +
+  facet_wrap(~ offer, scales = "free_y") + # Cada painel representa um tipo de oferta
+  labs(title = "Distribuição de Canal de compra por Tipo de Oferta",
+       x = "Canal de Compra",
+       y = "Contagem") +
+  scale_fill_manual(values = c("Phone" = "#FF5722", "Web" = "#3F51B5", "Multichannel" = "#94928b")) +
+  theme_minimal()
+
+# Adicionando porcentagens aos gráficos
+gg_zip_offer <- gg_zip_offer +
+  geom_text(stat = 'count', aes(label = scales::percent(..count../sum(..count..), accuracy = 0.1)),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3)
+
+print(gg_zip_offer)
+```
+
+Assim como a área a distribuição de 'Canal de Compra' é similar entre os grupos de oferta e não deve afetar a análise dos efeitos da campanha.
+
+## Análise dos efeitos da Campanha
+
+Vamos agora analisar os efeitos em conversão entre campanhas e grupo de controle
+
+### Teste A/B:
+
+```{r}
+# Gráfico de barras para 'conversion' por cada grupo de 'offer', com o eixo x representando apenas conversão
+gg_conversion_offer <- vendas %>%
+  ggplot(aes(x = as.factor(conversion), fill = as.factor(conversion))) +
+  geom_bar(position = position_dodge()) +
+  facet_wrap(~ offer, scales = "free_y") + # Cada painel representa um tipo de oferta
+  labs(title = "Conversão de Vendas por Tipo de Oferta",
+       x = "Conversão (0 = Não, 1 = Sim)",
+       y = "Contagem",
+       fill = "Conversão") +
+  scale_fill_manual(values = c("0" = "#FF6347", "1" = "#32CD32")) + # Cores para não conversão e conversão
+  theme_minimal()
+
+# Adicionando porcentagens aos gráficos
+gg_conversion_offer <- gg_conversion_offer +
+  geom_text(stat = 'count', aes(label = scales::percent(..count../sum(..count..), accuracy = 0.1)),
+            position = position_dodge(width = 0.9), vjust = -0.5, size = 3)
+
+print(gg_conversion_offer)
+```
+
+Validamos assim via teste A/B que ambas as campanhas de marketing (BOGO e Discount) tiveram um efeito positivo na conversão de vendas.
+
+```{r}
+# Calcular a taxa de conversão para cada grupo de oferta
+conversion_rates <- vendas %>%
+  group_by(offer) %>%
+  summarise(conversion_rate = mean(conversion)*100) %>%
+  ungroup()
+
+# Encontrar a taxa de conversão do grupo de controle (No Offer)
+control_rate <- conversion_rates %>%
+  filter(offer == "No Offer") %>%
+  pull(conversion_rate)
+
+# Calcular o aumento de vendas para cada uma das campanhas em relação ao grupo de controle
+conversion_increase <- conversion_rates %>%
+  mutate(increase = ifelse(offer == "No Offer", NA, (conversion_rate - control_rate) / control_rate * 100))
+
+# Mostrar os resultados, incluindo o grupo de controle
+conversion_increase
+```
+
+
+Verificamos um aumento de 72% na taxa de conversão para campanha de descontos e 42% para a campanha BOGO em relação ao grupo de controle.
+
+Temos assim uma indicação inicial de que a campanha de BOGO pode não ser tão eficas para a conversão quanto um desconto tradicional.
+
+Porém precisamos analisar agora se apesar do menor impacto se o aumento no faturamento é superior (Já que apesar de ser equivalente a um desconto de 50% o BOGO leva a compra de 2 unidades).
