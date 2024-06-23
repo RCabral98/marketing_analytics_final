@@ -31,6 +31,7 @@ library(dplyr)
 library(tools4uplift)
 library(tidymodels)
 library(ggplot2)
+library(caret)
 ```
 
 Vamos analisar uma base de Marketing para uma campanha de promoção 2 por 1 (BOGO - Buy one get one).
@@ -235,11 +236,22 @@ Temos assim uma indicação inicial de que a campanha de BOGO pode não ser tão
 
 Porém precisamos analisar agora se apesar do menor impacto se o aumento no faturamento é superior (Já que apesar de ser equivalente a um desconto de 50% o BOGO leva a compra de 2 unidades).
 
-### Modelo Uplift:
+### Vamos agora separar a base de acordo com os tratamentos para podermos realizar algumas análises individuais:
+
+```{r}
+vendas_bogo <- vendas %>%
+  filter(offer == "Buy One Get One" | offer == "No Offer")  # Apenas BOGO e grupo de controle
+
+vendas_discount <- vendas %>%
+  filter(offer == "Discount" | offer == "No Offer")  # Apenas Discount e grupo de controle
+```
+
+
+### Modelos Uplift:
 
 Vamos analisar agora, aplicando um modelo Uplift sem descrição da campanha de marketing enviada (analisando o efeito de ambas juntas)
 
-```{r}
+```{r, include=FALSE}
 # Convertendo variáveis categóricas em dummies
 uplift_data <- vendas %>%
   mutate(
@@ -253,41 +265,234 @@ uplift_data <- vendas %>%
   as.data.frame() %>%
   cbind(vendas, .) %>%
   select(-c(channel, zip_code, offer))  # Removendo as colunas originais categóricas
-
 ```
+
+#### Preparando as bases de dados para os conjuntos das 2 campanhas:
+
+```{r}
+uplift_data_bogo <- vendas_bogo %>% 
+  mutate(
+    channel = as.factor(channel),
+    zip_code = as.factor(zip_code),
+    treat = ifelse(offer == "No Offer", 0, 1),  # Indicador de tratamento binário
+  ) %>%
+  model.matrix(~ channel + zip_code + treat - 1, data = .) %>%
+  as.data.frame() %>%
+  cbind(vendas_bogo, .) %>%
+  select(-c(channel, zip_code, offer))  # Removendo as colunas originais categóricas
+```
+
+```{r}
+uplift_data_discount <- vendas_discount %>% 
+  mutate(
+    channel = as.factor(channel),
+    zip_code = as.factor(zip_code),
+    treat = ifelse(offer == "No Offer", 0, 1),  # Indicador de tratamento binário
+  ) %>%
+  model.matrix(~ channel + zip_code + treat - 1, data = .) %>%
+  as.data.frame() %>%
+  cbind(vendas_discount, .) %>%
+  select(-c(channel, zip_code, offer))  # Removendo as colunas originais categóricas
+```
+
 
 ```{r}
 head(uplift_data)
 ```
+
+```{r}
+#Vamos separar a base em treinamento e teste para os modelos uplift:
+set.seed(123)
+
+split_uplift <- SplitUplift(data = uplift_data, p = 0.8, group = c("treat", "conversion"))
+split_uplift_bogo <- SplitUplift(data = uplift_data_bogo, p = 0.8, group = c("treat", "conversion"))
+split_uplift_discount <- SplitUplift(data = uplift_data_discount, p = 0.8, group = c("treat", "conversion"))
+
+uplift_treinamento <- split_uplift[[1]]
+uplift_teste <- split_uplift[[2]]
+
+uplift_treinamento_bogo <- split_uplift_bogo[[1]]
+uplift_test_bogo <- split_uplift_bogo[[2]]
+
+uplift_treinamento_discount <- split_uplift_discount[[1]]
+uplift_test_discount <- split_uplift_discount[[2]]
+```
+
 Definindo as variaveis preditoras:
 
 ```{r}
 #Definindo variáveis preditoras:
-predictors <- setdiff(names(uplift_data), c("conversion", "treat", "offerDiscount", "offerBOGO"))
+predictors <- setdiff(names(uplift_treinamento), c("conversion", "treat", "offerDiscount", "offerBOGO"))
+
+predictors_bogo <- setdiff(names(uplift_treinamento_bogo), c("conversion", "treat"))
+predictors_discount <- setdiff(names(uplift_treinamento_discount), c("conversion", "treat"))
 ```
 
-Aplicando o modelo Dual Uplift:
+#### Modelo Uplift: Two-model estimator
 
 ```{r}
-# Ajustando o modelo DualUplift com os preditores e o resultado especificados
-
-dual_uplift_model <- DualUplift(
-  data = uplift_data,
+dual_uplift_model_bogo <- DualUplift(
+  data = uplift_treinamento_bogo,  # fornecendo a base de dados
   treat = 'treat',  # especificando a coluna de tratamento
   outcome = 'conversion',  # especificando a variável de resultado
-  predictors = predictors  # fornecendo a lista de preditores
+  predictors = predictors_bogo  # fornecendo a lista de preditores
 )
 
-# Imprimindo o resumo do modelo
-print(summary(dual_uplift_model))
+dual_uplift_model_discount <- DualUplift(
+  data = uplift_treinamento_discount,  # fornecendo a base de dados
+  treat = 'treat',  # especificando a coluna de tratamento
+  outcome = 'conversion',  # especificando a variável de resultado
+  predictors = predictors_discount  # fornecendo a lista de preditores
+)
+```
+
+Vamos analisar os resultados dos modelos para as duas campanhas:
+
+1. Campanha BOGO:
+
+```{r}
+#Análise dos resultados do modelo BOGO:
+print(summary(dual_uplift_model_bogo))
+```
+2. campanha Discount:
+
+```{r}
+#Análise dos resultados do modelo Discount:
+print(summary(dual_uplift_model_discount))
 ```
 
 Observando os resultados do nosso modelo para grupo de controle e campanhas combinadas:
 
--As estatísticas são consistentes entre os grupos de controle e tratamento, com diferenças em magnitude e significância estatística em algumas variáveis.
+REVISAR CONCLUSÕES DOS MODELOS UPLIFTS
 
-- De maneira geral todas as variáveis são significativas para o modelo.
 
-- channelWeb é excluido pois pode ser correlacionado as a ausência das outras categorias channel.
+#### Modelo Uplift: Interaction estimator
 
+```{r}
+inter_uplift_model_bogo <- InterUplift(
+  data = uplift_treinamento_bogo,  # fornecendo a base de dados
+  treat = 'treat',  # especificando a coluna de tratamento
+  outcome = 'conversion',  # especificando a variável de resultado
+  predictors = predictors_bogo  # fornecendo a lista de preditores
+)
+
+inter_uplift_model_discount <- InterUplift(
+  data = uplift_treinamento_discount,  # fornecendo a base de dados
+  treat = 'treat',  # especificando a coluna de tratamento
+  outcome = 'conversion',  # especificando a variável de resultado
+  predictors = predictors_discount  # fornecendo a lista de preditores
+)
+```
+ 
+Vamos avaliar os modelos construídos:
+
+1. Campanha BOGO:
+
+```{r}
+print(summary(inter_uplift_model_bogo))
+```
+2. Campanha Discount:
+
+```{r}
+print(summary(inter_uplift_model_discount))
+```
+
+
+### Vamos realizar as predições e salvar os resultados para análise uplift das campanhas:
+
+```{r}
+#Vamos realizar as predições com os modelos gerados para analisar o resultado:
+
+#Predições de modelos Dual Uplift:
+
+predicoes_dual_uplift_bogo <- predict.DualUplift(
+  dual_uplift_model_bogo, 
+  newdata= uplift_test_bogo
+  )
+
+predicoes_dual_uplift_discount <- predict.DualUplift(
+  dual_uplift_model_discount, 
+  newdata= uplift_test_discount
+  )
+
+#Predições de modelos Inter Uplift:
+
+predicoes_inter_bogo <- predict.InterUplift(
+  inter_uplift_model_bogo, 
+  newdata= uplift_test_bogo,
+  treat = "treat"
+  )
+
+predicoes_inter_discount <- predict.InterUplift(
+  inter_uplift_model_discount,
+  newdata= uplift_test_discount,
+  treat = "treat"
+  )
+```
+
+Salvando os resultados:
+
+```{r}
+#Salvando os resultados de predição:
+
+#uplift_teste$predito_dual_uplift <- predicoes_dual_uplift
+
+uplift_test_bogo$predito_dual_uplift <- predicoes_dual_uplift_bogo
+uplift_test_discount$predito_dual_uplift <- predicoes_dual_uplift_discount
+
+uplift_test_bogo$predito_inter_uplift <- predicoes_inter_bogo
+uplift_test_discount$predito_inter_uplift <- predicoes_inter_discount
+```
+
+
+### Vamos por fim analisar a performance do modelo após realizar as predições:
+
+
+```{r}
+
+#Performance de modelos Dual Uplift:
+
+performance_dual_uplift_bogo <- PerformanceUplift(
+  data = uplift_test_bogo, 
+  treat = "treat", 
+  outcome = "conversion", 
+  prediction="predito_dual_uplift", 
+  nb.group = 15
+  )
+
+performance_dual_uplift_discount <- PerformanceUplift(
+  data = uplift_test_discount, 
+  treat = "treat", 
+  outcome = "conversion", 
+  prediction="predito_dual_uplift", 
+  nb.group = 15
+  )
+
+#Performance de modelos Inter Uplift:
+
+performance_inter_uplift_bogo <- PerformanceUplift(
+  data = uplift_test_bogo, 
+  treat = "treat", 
+  outcome = "conversion", 
+  prediction="predito_inter_uplift", 
+  nb.group = 15
+  )
+
+performance_inter_uplift_discount <- PerformanceUplift(
+  data = uplift_test_discount, 
+  treat = "treat", 
+  outcome = "conversion", 
+  prediction="predito_inter_uplift", 
+  nb.group = 15
+  )
+```
+
+```{r}
+performance_inter_uplift_bogo
+```
+ADICIONAR OS PLOTS E ANÁLISE DOS RESULTADOS:
+
+```{r}
+plot(performance_dual_uplift_discount)
+```
 

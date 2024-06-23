@@ -3088,6 +3088,10 @@ vertical-align: -.125em;
   <li><a href="#análise-dos-efeitos-da-campanha" id="toc-análise-dos-efeitos-da-campanha" class="nav-link" data-scroll-target="#análise-dos-efeitos-da-campanha">Análise dos efeitos da Campanha</a>
   <ul class="collapse">
   <li><a href="#teste-ab" id="toc-teste-ab" class="nav-link" data-scroll-target="#teste-ab">Teste A/B:</a></li>
+  <li><a href="#vamos-agora-separar-a-base-de-acordo-com-os-tratamentos-para-podermos-realizar-algumas-análises-individuais" id="toc-vamos-agora-separar-a-base-de-acordo-com-os-tratamentos-para-podermos-realizar-algumas-análises-individuais" class="nav-link" data-scroll-target="#vamos-agora-separar-a-base-de-acordo-com-os-tratamentos-para-podermos-realizar-algumas-análises-individuais">Vamos agora separar a base de acordo com os tratamentos para podermos realizar algumas análises individuais:</a></li>
+  <li><a href="#modelos-uplift" id="toc-modelos-uplift" class="nav-link" data-scroll-target="#modelos-uplift">Modelos Uplift:</a></li>
+  <li><a href="#vamos-realizar-as-predições-e-salvar-os-resultados-para-análise-uplift-das-campanhas" id="toc-vamos-realizar-as-predições-e-salvar-os-resultados-para-análise-uplift-das-campanhas" class="nav-link" data-scroll-target="#vamos-realizar-as-predições-e-salvar-os-resultados-para-análise-uplift-das-campanhas">Vamos realizar as predições e salvar os resultados para análise uplift das campanhas:</a></li>
+  <li><a href="#vamos-por-fim-analisar-a-performance-do-modelo-após-realizar-as-predições" id="toc-vamos-por-fim-analisar-a-performance-do-modelo-após-realizar-as-predições" class="nav-link" data-scroll-target="#vamos-por-fim-analisar-a-performance-do-modelo-após-realizar-as-predições">Vamos por fim analisar a performance do modelo após realizar as predições:</a></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -3387,6 +3391,527 @@ vertical-align: -.125em;
 <p>Verificamos um aumento de 72% na taxa de conversão para campanha de descontos e 42% para a campanha BOGO em relação ao grupo de controle.</p>
 <p>Temos assim uma indicação inicial de que a campanha de BOGO pode não ser tão eficas para a conversão quanto um desconto tradicional.</p>
 <p>Porém precisamos analisar agora se apesar do menor impacto se o aumento no faturamento é superior (Já que apesar de ser equivalente a um desconto de 50% o BOGO leva a compra de 2 unidades).</p>
+</section>
+<section id="vamos-agora-separar-a-base-de-acordo-com-os-tratamentos-para-podermos-realizar-algumas-análises-individuais" class="level3">
+<h3 class="anchored" data-anchor-id="vamos-agora-separar-a-base-de-acordo-com-os-tratamentos-para-podermos-realizar-algumas-análises-individuais">Vamos agora separar a base de acordo com os tratamentos para podermos realizar algumas análises individuais:</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>vendas_bogo <span class="ot">&lt;-</span> vendas <span class="sc">%&gt;%</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(offer <span class="sc">==</span> <span class="st">&quot;Buy One Get One&quot;</span> <span class="sc">|</span> offer <span class="sc">==</span> <span class="st">&quot;No Offer&quot;</span>)  <span class="co"># Apenas BOGO e grupo de controle</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>vendas_discount <span class="ot">&lt;-</span> vendas <span class="sc">%&gt;%</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(offer <span class="sc">==</span> <span class="st">&quot;Discount&quot;</span> <span class="sc">|</span> offer <span class="sc">==</span> <span class="st">&quot;No Offer&quot;</span>)  <span class="co"># Apenas Discount e grupo de controle</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+</section>
+<section id="modelos-uplift" class="level3">
+<h3 class="anchored" data-anchor-id="modelos-uplift">Modelos Uplift:</h3>
+<p>Vamos analisar agora, aplicando um modelo Uplift sem descrição da campanha de marketing enviada (analisando o efeito de ambas juntas)</p>
+<section id="preparando-as-bases-de-dados-para-os-conjuntos-das-2-campanhas" class="level4">
+<h4 class="anchored" data-anchor-id="preparando-as-bases-de-dados-para-os-conjuntos-das-2-campanhas">Preparando as bases de dados para os conjuntos das 2 campanhas:</h4>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>uplift_data_bogo <span class="ot">&lt;-</span> vendas_bogo <span class="sc">%&gt;%</span> </span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">channel =</span> <span class="fu">as.factor</span>(channel),</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">zip_code =</span> <span class="fu">as.factor</span>(zip_code),</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">treat =</span> <span class="fu">ifelse</span>(offer <span class="sc">==</span> <span class="st">&quot;No Offer&quot;</span>, <span class="dv">0</span>, <span class="dv">1</span>),  <span class="co"># Indicador de tratamento binário</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">model.matrix</span>(<span class="sc">~</span> channel <span class="sc">+</span> zip_code <span class="sc">+</span> treat <span class="sc">-</span> <span class="dv">1</span>, <span class="at">data =</span> .) <span class="sc">%&gt;%</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(vendas_bogo, .) <span class="sc">%&gt;%</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(channel, zip_code, offer))  <span class="co"># Removendo as colunas originais categóricas</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>uplift_data_discount <span class="ot">&lt;-</span> vendas_discount <span class="sc">%&gt;%</span> </span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">channel =</span> <span class="fu">as.factor</span>(channel),</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">zip_code =</span> <span class="fu">as.factor</span>(zip_code),</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">treat =</span> <span class="fu">ifelse</span>(offer <span class="sc">==</span> <span class="st">&quot;No Offer&quot;</span>, <span class="dv">0</span>, <span class="dv">1</span>),  <span class="co"># Indicador de tratamento binário</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">model.matrix</span>(<span class="sc">~</span> channel <span class="sc">+</span> zip_code <span class="sc">+</span> treat <span class="sc">-</span> <span class="dv">1</span>, <span class="at">data =</span> .) <span class="sc">%&gt;%</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(vendas_discount, .) <span class="sc">%&gt;%</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(channel, zip_code, offer))  <span class="co"># Removendo as colunas originais categóricas</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(uplift_data)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>  recency history used_discount used_bogo is_referral conversion
+1      10  142.44             1         0           0          0
+2       6  329.08             1         1           1          0
+3       7  180.65             0         1           1          0
+4       9  675.83             1         0           1          0
+5       2   45.34             1         0           0          0
+6       6  134.83             0         1           0          1
+  channelMultichannel channelPhone channelWeb zip_codeSurburban zip_codeUrban
+1                   0            1          0                 1             0
+2                   0            0          1                 0             0
+3                   0            0          1                 1             0
+4                   0            0          1                 0             0
+5                   0            0          1                 0             1
+6                   0            1          0                 1             0
+  treat offerDiscount offerBOGO
+1     1             0         1
+2     0             0         0
+3     1             0         1
+4     1             1         0
+5     1             0         1
+6     1             0         1</code></pre>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Vamos separar a base em treinamento e teste para os modelos uplift:</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>split_uplift <span class="ot">&lt;-</span> <span class="fu">SplitUplift</span>(<span class="at">data =</span> uplift_data, <span class="at">p =</span> <span class="fl">0.8</span>, <span class="at">group =</span> <span class="fu">c</span>(<span class="st">&quot;treat&quot;</span>, <span class="st">&quot;conversion&quot;</span>))</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>split_uplift_bogo <span class="ot">&lt;-</span> <span class="fu">SplitUplift</span>(<span class="at">data =</span> uplift_data_bogo, <span class="at">p =</span> <span class="fl">0.8</span>, <span class="at">group =</span> <span class="fu">c</span>(<span class="st">&quot;treat&quot;</span>, <span class="st">&quot;conversion&quot;</span>))</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>split_uplift_discount <span class="ot">&lt;-</span> <span class="fu">SplitUplift</span>(<span class="at">data =</span> uplift_data_discount, <span class="at">p =</span> <span class="fl">0.8</span>, <span class="at">group =</span> <span class="fu">c</span>(<span class="st">&quot;treat&quot;</span>, <span class="st">&quot;conversion&quot;</span>))</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>uplift_treinamento <span class="ot">&lt;-</span> split_uplift[[<span class="dv">1</span>]]</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>uplift_teste <span class="ot">&lt;-</span> split_uplift[[<span class="dv">2</span>]]</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>uplift_treinamento_bogo <span class="ot">&lt;-</span> split_uplift_bogo[[<span class="dv">1</span>]]</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>uplift_test_bogo <span class="ot">&lt;-</span> split_uplift_bogo[[<span class="dv">2</span>]]</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>uplift_treinamento_discount <span class="ot">&lt;-</span> split_uplift_discount[[<span class="dv">1</span>]]</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>uplift_test_discount <span class="ot">&lt;-</span> split_uplift_discount[[<span class="dv">2</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>Definindo as variaveis preditoras:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Definindo variáveis preditoras:</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>predictors <span class="ot">&lt;-</span> <span class="fu">setdiff</span>(<span class="fu">names</span>(uplift_treinamento), <span class="fu">c</span>(<span class="st">&quot;conversion&quot;</span>, <span class="st">&quot;treat&quot;</span>, <span class="st">&quot;offerDiscount&quot;</span>, <span class="st">&quot;offerBOGO&quot;</span>))</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>predictors_bogo <span class="ot">&lt;-</span> <span class="fu">setdiff</span>(<span class="fu">names</span>(uplift_treinamento_bogo), <span class="fu">c</span>(<span class="st">&quot;conversion&quot;</span>, <span class="st">&quot;treat&quot;</span>))</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>predictors_discount <span class="ot">&lt;-</span> <span class="fu">setdiff</span>(<span class="fu">names</span>(uplift_treinamento_discount), <span class="fu">c</span>(<span class="st">&quot;conversion&quot;</span>, <span class="st">&quot;treat&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+</section>
+<section id="modelo-uplift-two-model-estimator" class="level4">
+<h4 class="anchored" data-anchor-id="modelo-uplift-two-model-estimator">Modelo Uplift: Two-model estimator</h4>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>dual_uplift_model_bogo <span class="ot">&lt;-</span> <span class="fu">DualUplift</span>(</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> uplift_treinamento_bogo,  <span class="co"># fornecendo a base de dados</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">treat =</span> <span class="st">&#39;treat&#39;</span>,  <span class="co"># especificando a coluna de tratamento</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">&#39;conversion&#39;</span>,  <span class="co"># especificando a variável de resultado</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">predictors =</span> predictors_bogo  <span class="co"># fornecendo a lista de preditores</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>dual_uplift_model_discount <span class="ot">&lt;-</span> <span class="fu">DualUplift</span>(</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> uplift_treinamento_discount,  <span class="co"># fornecendo a base de dados</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">treat =</span> <span class="st">&#39;treat&#39;</span>,  <span class="co"># especificando a coluna de tratamento</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">&#39;conversion&#39;</span>,  <span class="co"># especificando a variável de resultado</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">predictors =</span> predictors_discount  <span class="co"># fornecendo a lista de preditores</span></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>Vamos analisar os resultados dos modelos para as duas campanhas:</p>
+<ol type="1">
+<li>Campanha BOGO:</li>
+</ol>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Análise dos resultados do modelo BOGO:</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">summary</span>(dual_uplift_model_bogo))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>$call
+DualUplift(data = uplift_treinamento_bogo, treat = &quot;treat&quot;, outcome = &quot;conversion&quot;, 
+    predictors = predictors_bogo)
+
+$control
+
+Call:
+&quot;Control Group Logistic Model&quot;
+
+Coefficients: (1 not defined because of singularities)
+                      Estimate Std. Error z value Pr(&gt;|z|)    
+(Intercept)         -1.5660232  0.1116947 -14.021  &lt; 2e-16 ***
+recency             -0.0758772  0.0077093  -9.842  &lt; 2e-16 ***
+history              0.0006364  0.0001099   5.792 6.95e-09 ***
+used_discount        0.5486030  0.0823120   6.665 2.65e-11 ***
+used_bogo            0.4915335  0.0818905   6.002 1.95e-09 ***
+is_referral         -0.7259624  0.0553401 -13.118  &lt; 2e-16 ***
+channelMultichannel -0.2142083  0.0823068  -2.603  0.00925 ** 
+channelPhone        -0.3180254  0.0551039  -5.771 7.86e-09 ***
+channelWeb                  NA         NA      NA       NA    
+zip_codeSurburban   -0.5162223  0.0681825  -7.571 3.70e-14 ***
+zip_codeUrban       -0.5507564  0.0697124  -7.900 2.78e-15 ***
+---
+Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 11498  on 17074  degrees of freedom
+Residual deviance: 11007  on 17065  degrees of freedom
+AIC: 11027
+
+Number of Fisher Scoring iterations: 5
+
+
+$treatment
+
+Call:
+&quot;Treatment Group Logistic Model&quot;
+
+Coefficients: (1 not defined because of singularities)
+                      Estimate Std. Error z value Pr(&gt;|z|)    
+(Intercept)         -1.687e+00  9.972e-02 -16.914  &lt; 2e-16 ***
+recency             -4.214e-02  6.465e-03  -6.518 7.10e-11 ***
+history              4.865e-04  9.431e-05   5.159 2.49e-07 ***
+used_discount        3.509e-01  6.979e-02   5.028 4.97e-07 ***
+used_bogo            8.378e-01  7.240e-02  11.571  &lt; 2e-16 ***
+is_referral         -5.012e-01  4.575e-02 -10.955  &lt; 2e-16 ***
+channelMultichannel -1.727e-01  7.177e-02  -2.407   0.0161 *  
+channelPhone        -2.585e-01  4.666e-02  -5.540 3.02e-08 ***
+channelWeb                  NA         NA      NA       NA    
+zip_codeSurburban   -2.625e-01  6.113e-02  -4.295 1.75e-05 ***
+zip_codeUrban       -3.265e-01  6.269e-02  -5.208 1.91e-07 ***
+---
+Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 14536  on 17078  degrees of freedom
+Residual deviance: 14074  on 17069  degrees of freedom
+AIC: 14094
+
+Number of Fisher Scoring iterations: 4
+
+
+attr(,&quot;class&quot;)
+[1] &quot;summary.DualUplift&quot;</code></pre>
+</div>
+</div>
+<ol start="2" type="1">
+<li>campanha Discount:</li>
+</ol>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Análise dos resultados do modelo Discount:</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">summary</span>(dual_uplift_model_discount))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>$call
+DualUplift(data = uplift_treinamento_discount, treat = &quot;treat&quot;, 
+    outcome = &quot;conversion&quot;, predictors = predictors_discount)
+
+$control
+
+Call:
+&quot;Control Group Logistic Model&quot;
+
+Coefficients: (1 not defined because of singularities)
+                      Estimate Std. Error z value Pr(&gt;|z|)    
+(Intercept)         -1.6571858  0.1128974 -14.679  &lt; 2e-16 ***
+recency             -0.0748831  0.0077649  -9.644  &lt; 2e-16 ***
+history              0.0005578  0.0001133   4.923 8.52e-07 ***
+used_discount        0.6193878  0.0817560   7.576 3.56e-14 ***
+used_bogo            0.5681722  0.0811089   7.005 2.47e-12 ***
+is_referral         -0.7825544  0.0560121 -13.971  &lt; 2e-16 ***
+channelMultichannel -0.1797060  0.0817152  -2.199   0.0279 *  
+channelPhone        -0.3533540  0.0557389  -6.339 2.31e-10 ***
+channelWeb                  NA         NA      NA       NA    
+zip_codeSurburban   -0.4620653  0.0691162  -6.685 2.30e-11 ***
+zip_codeUrban       -0.5176490  0.0708816  -7.303 2.81e-13 ***
+---
+Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 11405  on 17097  degrees of freedom
+Residual deviance: 10891  on 17088  degrees of freedom
+AIC: 10911
+
+Number of Fisher Scoring iterations: 5
+
+
+$treatment
+
+Call:
+&quot;Treatment Group Logistic Model&quot;
+
+Coefficients: (1 not defined because of singularities)
+                      Estimate Std. Error z value Pr(&gt;|z|)    
+(Intercept)         -1.517e+00  9.140e-02 -16.593  &lt; 2e-16 ***
+recency             -5.138e-02  6.027e-03  -8.525  &lt; 2e-16 ***
+history              4.152e-04  8.724e-05   4.759 1.95e-06 ***
+used_discount        7.307e-01  6.522e-02  11.204  &lt; 2e-16 ***
+used_bogo            7.295e-01  6.536e-02  11.162  &lt; 2e-16 ***
+is_referral         -5.398e-01  4.276e-02 -12.624  &lt; 2e-16 ***
+channelMultichannel -1.380e-01  6.721e-02  -2.054     0.04 *  
+channelPhone        -1.966e-01  4.353e-02  -4.517 6.26e-06 ***
+channelWeb                  NA         NA      NA       NA    
+zip_codeSurburban   -3.402e-01  5.680e-02  -5.990 2.10e-09 ***
+zip_codeUrban       -3.144e-01  5.756e-02  -5.462 4.70e-08 ***
+---
+Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 16151  on 16991  degrees of freedom
+Residual deviance: 15641  on 16982  degrees of freedom
+AIC: 15661
+
+Number of Fisher Scoring iterations: 4
+
+
+attr(,&quot;class&quot;)
+[1] &quot;summary.DualUplift&quot;</code></pre>
+</div>
+</div>
+<p>Observando os resultados do nosso modelo para grupo de controle e campanhas combinadas:</p>
+<p>REVISAR CONCLUSÕES DOS MODELOS UPLIFTS</p>
+</section>
+<section id="modelo-uplift-interaction-estimator" class="level4">
+<h4 class="anchored" data-anchor-id="modelo-uplift-interaction-estimator">Modelo Uplift: Interaction estimator</h4>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>inter_uplift_model_bogo <span class="ot">&lt;-</span> <span class="fu">InterUplift</span>(</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> uplift_treinamento_bogo,  <span class="co"># fornecendo a base de dados</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">treat =</span> <span class="st">&#39;treat&#39;</span>,  <span class="co"># especificando a coluna de tratamento</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">&#39;conversion&#39;</span>,  <span class="co"># especificando a variável de resultado</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">predictors =</span> predictors_bogo  <span class="co"># fornecendo a lista de preditores</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>inter_uplift_model_discount <span class="ot">&lt;-</span> <span class="fu">InterUplift</span>(</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> uplift_treinamento_discount,  <span class="co"># fornecendo a base de dados</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">treat =</span> <span class="st">&#39;treat&#39;</span>,  <span class="co"># especificando a coluna de tratamento</span></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">&#39;conversion&#39;</span>,  <span class="co"># especificando a variável de resultado</span></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">predictors =</span> predictors_discount  <span class="co"># fornecendo a lista de preditores</span></span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>Vamos avaliar os modelos construídos:</p>
+<ol type="1">
+<li>Campanha BOGO:</li>
+</ol>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">summary</span>(inter_uplift_model_bogo))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+InterUplift(data = uplift_treinamento_bogo, treat = &quot;treat&quot;, 
+    outcome = &quot;conversion&quot;, predictors = predictors_bogo)
+
+Coefficients: (2 not defined because of singularities)
+                            Estimate Std. Error z value Pr(&gt;|z|)    
+(Intercept)               -1.5660232  0.1116947 -14.021  &lt; 2e-16 ***
+treat                     -0.1206131  0.1497315  -0.806 0.420515    
+recency                   -0.0758772  0.0077093  -9.842  &lt; 2e-16 ***
+history                    0.0006364  0.0001099   5.792 6.95e-09 ***
+used_discount              0.5486030  0.0823120   6.665 2.65e-11 ***
+used_bogo                  0.4915335  0.0818905   6.002 1.95e-09 ***
+is_referral               -0.7259624  0.0553401 -13.118  &lt; 2e-16 ***
+channelMultichannel       -0.2142083  0.0823068  -2.603 0.009253 ** 
+channelPhone              -0.3180254  0.0551039  -5.771 7.86e-09 ***
+channelWeb                        NA         NA      NA       NA    
+zip_codeSurburban         -0.5162223  0.0681825  -7.571 3.70e-14 ***
+zip_codeUrban             -0.5507564  0.0697124  -7.900 2.78e-15 ***
+treat:recency              0.0337369  0.0100614   3.353 0.000799 ***
+treat:history             -0.0001500  0.0001448  -1.036 0.300402    
+treat:used_discount       -0.1977158  0.1079188  -1.832 0.066940 .  
+treat:used_bogo            0.3462180  0.1093078   3.167 0.001538 ** 
+treat:is_referral          0.2247428  0.0718046   3.130 0.001749 ** 
+treat:channelMultichannel  0.0414804  0.1092042   0.380 0.704062    
+treat:channelPhone         0.0595172  0.0722057   0.824 0.409785    
+treat:channelWeb                  NA         NA      NA       NA    
+treat:zip_codeSurburban    0.2536872  0.0915766   2.770 0.005602 ** 
+treat:zip_codeUrban        0.2242847  0.0937537   2.392 0.016744 *  
+---
+Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 26199  on 34153  degrees of freedom
+Residual deviance: 25081  on 34134  degrees of freedom
+AIC: 25121
+
+Number of Fisher Scoring iterations: 5</code></pre>
+</div>
+</div>
+<ol start="2" type="1">
+<li>Campanha Discount:</li>
+</ol>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">summary</span>(inter_uplift_model_discount))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+InterUplift(data = uplift_treinamento_discount, treat = &quot;treat&quot;, 
+    outcome = &quot;conversion&quot;, predictors = predictors_discount)
+
+Coefficients: (2 not defined because of singularities)
+                            Estimate Std. Error z value Pr(&gt;|z|)    
+(Intercept)               -1.6571858  0.1128974 -14.679  &lt; 2e-16 ***
+treat                      0.1405875  0.1452573   0.968 0.333119    
+recency                   -0.0748831  0.0077649  -9.644  &lt; 2e-16 ***
+history                    0.0005578  0.0001133   4.923 8.52e-07 ***
+used_discount              0.6193878  0.0817560   7.576 3.56e-14 ***
+used_bogo                  0.5681722  0.0811089   7.005 2.47e-12 ***
+is_referral               -0.7825544  0.0560121 -13.971  &lt; 2e-16 ***
+channelMultichannel       -0.1797060  0.0817152  -2.199 0.027866 *  
+channelPhone              -0.3533540  0.0557389  -6.339 2.31e-10 ***
+channelWeb                        NA         NA      NA       NA    
+zip_codeSurburban         -0.4620653  0.0691162  -6.685 2.30e-11 ***
+zip_codeUrban             -0.5176490  0.0708816  -7.303 2.81e-13 ***
+treat:recency              0.0235041  0.0098294   2.391 0.016792 *  
+treat:history             -0.0001426  0.0001430  -0.997 0.318702    
+treat:used_discount        0.1113448  0.1045831   1.065 0.287032    
+treat:used_bogo            0.1613585  0.1041667   1.549 0.121372    
+treat:is_referral          0.2427110  0.0704708   3.444 0.000573 ***
+treat:channelMultichannel  0.0416872  0.1058052   0.394 0.693581    
+treat:channelPhone         0.1567124  0.0707234   2.216 0.026702 *  
+treat:channelWeb                  NA         NA      NA       NA    
+treat:zip_codeSurburban    0.1218551  0.0894581   1.362 0.173152    
+treat:zip_codeUrban        0.2032723  0.0913062   2.226 0.025996 *  
+---
+Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 27990  on 34089  degrees of freedom
+Residual deviance: 26532  on 34070  degrees of freedom
+AIC: 26572
+
+Number of Fisher Scoring iterations: 5</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="vamos-realizar-as-predições-e-salvar-os-resultados-para-análise-uplift-das-campanhas" class="level3">
+<h3 class="anchored" data-anchor-id="vamos-realizar-as-predições-e-salvar-os-resultados-para-análise-uplift-das-campanhas">Vamos realizar as predições e salvar os resultados para análise uplift das campanhas:</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Vamos realizar as predições com os modelos gerados para analisar o resultado:</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="co">#Predições de modelos Dual Uplift:</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>predicoes_dual_uplift_bogo <span class="ot">&lt;-</span> <span class="fu">predict.DualUplift</span>(</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>  dual_uplift_model_bogo, </span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">newdata=</span> uplift_test_bogo</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>predicoes_dual_uplift_discount <span class="ot">&lt;-</span> <span class="fu">predict.DualUplift</span>(</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>  dual_uplift_model_discount, </span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">newdata=</span> uplift_test_discount</span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a><span class="co">#Predições de modelos Inter Uplift:</span></span>
+<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>predicoes_inter_bogo <span class="ot">&lt;-</span> <span class="fu">predict.InterUplift</span>(</span>
+<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a>  inter_uplift_model_bogo, </span>
+<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">newdata=</span> uplift_test_bogo,</span>
+<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">treat =</span> <span class="st">&quot;treat&quot;</span></span>
+<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a>predicoes_inter_discount <span class="ot">&lt;-</span> <span class="fu">predict.InterUplift</span>(</span>
+<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a>  inter_uplift_model_discount,</span>
+<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">newdata=</span> uplift_test_discount,</span>
+<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">treat =</span> <span class="st">&quot;treat&quot;</span></span>
+<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>Salvando os resultados:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Salvando os resultados de predição:</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="co">#uplift_teste$predito_dual_uplift &lt;- predicoes_dual_uplift</span></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>uplift_test_bogo<span class="sc">$</span>predito_dual_uplift <span class="ot">&lt;-</span> predicoes_dual_uplift_bogo</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>uplift_test_discount<span class="sc">$</span>predito_dual_uplift <span class="ot">&lt;-</span> predicoes_dual_uplift_discount</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>uplift_test_bogo<span class="sc">$</span>predito_inter_uplift <span class="ot">&lt;-</span> predicoes_inter_bogo</span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>uplift_test_discount<span class="sc">$</span>predito_inter_uplift <span class="ot">&lt;-</span> predicoes_inter_discount</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+</section>
+<section id="vamos-por-fim-analisar-a-performance-do-modelo-após-realizar-as-predições" class="level3">
+<h3 class="anchored" data-anchor-id="vamos-por-fim-analisar-a-performance-do-modelo-após-realizar-as-predições">Vamos por fim analisar a performance do modelo após realizar as predições:</h3>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Performance de modelos Dual Uplift:</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>performance_dual_uplift_bogo <span class="ot">&lt;-</span> <span class="fu">PerformanceUplift</span>(</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> uplift_test_bogo, </span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">treat =</span> <span class="st">&quot;treat&quot;</span>, </span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">&quot;conversion&quot;</span>, </span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">prediction=</span><span class="st">&quot;predito_dual_uplift&quot;</span>, </span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">nb.group =</span> <span class="dv">15</span></span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>performance_dual_uplift_discount <span class="ot">&lt;-</span> <span class="fu">PerformanceUplift</span>(</span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> uplift_test_discount, </span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">treat =</span> <span class="st">&quot;treat&quot;</span>, </span>
+<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">&quot;conversion&quot;</span>, </span>
+<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">prediction=</span><span class="st">&quot;predito_dual_uplift&quot;</span>, </span>
+<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">nb.group =</span> <span class="dv">15</span></span>
+<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a><span class="co">#Performance de modelos Inter Uplift:</span></span>
+<span id="cb31-20"><a href="#cb31-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-21"><a href="#cb31-21" aria-hidden="true" tabindex="-1"></a>performance_inter_uplift_bogo <span class="ot">&lt;-</span> <span class="fu">PerformanceUplift</span>(</span>
+<span id="cb31-22"><a href="#cb31-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> uplift_test_bogo, </span>
+<span id="cb31-23"><a href="#cb31-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">treat =</span> <span class="st">&quot;treat&quot;</span>, </span>
+<span id="cb31-24"><a href="#cb31-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">&quot;conversion&quot;</span>, </span>
+<span id="cb31-25"><a href="#cb31-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">prediction=</span><span class="st">&quot;predito_inter_uplift&quot;</span>, </span>
+<span id="cb31-26"><a href="#cb31-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">nb.group =</span> <span class="dv">15</span></span>
+<span id="cb31-27"><a href="#cb31-27" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb31-28"><a href="#cb31-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-29"><a href="#cb31-29" aria-hidden="true" tabindex="-1"></a>performance_inter_uplift_discount <span class="ot">&lt;-</span> <span class="fu">PerformanceUplift</span>(</span>
+<span id="cb31-30"><a href="#cb31-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> uplift_test_discount, </span>
+<span id="cb31-31"><a href="#cb31-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">treat =</span> <span class="st">&quot;treat&quot;</span>, </span>
+<span id="cb31-32"><a href="#cb31-32" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">&quot;conversion&quot;</span>, </span>
+<span id="cb31-33"><a href="#cb31-33" aria-hidden="true" tabindex="-1"></a>  <span class="at">prediction=</span><span class="st">&quot;predito_inter_uplift&quot;</span>, </span>
+<span id="cb31-34"><a href="#cb31-34" aria-hidden="true" tabindex="-1"></a>  <span class="at">nb.group =</span> <span class="dv">15</span></span>
+<span id="cb31-35"><a href="#cb31-35" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(performance_dual_uplift_bogo)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="data:image/png;base64,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" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.8803758</code></pre>
+</div>
+</div>
 </section>
 </section>
 </section>
