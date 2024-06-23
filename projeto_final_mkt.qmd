@@ -1,3 +1,27 @@
+---
+title: "Marketing Analytics - Trabalho Final"
+authors:
+  - name: Michel Maurice Conjaud
+  - name: Hélio Pereira Oliveira
+  - name: Renan Cabral
+  - name: Tiago Evangelista Pardo
+format:
+  html:
+    code-fold: true
+    embed-resources: true
+    smooth-scroll: true
+    theme: cerulean
+    toc: true
+    toc-expand: true
+    toc-title: "Sumário"
+    toc_float: true
+
+execute:
+  freeze: true
+  warning: false
+  cache: true
+---
+
 # Projeto Final Marketing Analytics
 
 ```{r setup, include=FALSE}
@@ -42,9 +66,12 @@ vendas %>% skim()
 ```{r}
 vendas %>% head()
 ```
+
 ## Vamos analisar a distribuição das características dos clientes:
 
 Análise demográfica - Temos apenas 2 características demográficas: 'zip_code' e 'channel'.
+
+(Obs.: Além das características demográficas precismamos analisar também outras características do cliente como a recência, o histórico (total gasto) e se o cliente foi referido)
 
 ```{r, include=FALSE}
 # Criar uma função auxiliar para adicionar porcentagens aos gráficos de barra
@@ -105,7 +132,7 @@ print(gg_offer)
 
 Vemos que a distribuição das amostras está distribuída igualmente entre os 3 tipos de oferta (BOGO, No Offer, Discount).
 
-### Vamos verificar agora se a distribuição demográfica entre cada grupo de oferta é similar:
+### Distribuição demográfica por tipo de oferta:
 
 ```{r}
 # Gráfico de barras para 'zip_code' por cada grupo de 'offer'
@@ -127,8 +154,7 @@ gg_zip_offer <- gg_zip_offer +
 print(gg_zip_offer)
 ```
 
-Verificamos que a distribuição de 'Área' é similar entre os grupos de oferta.
-Logo esse fator n deve afetar a amostragem.
+Verificamos que a distribuição de 'Área' é similar entre os grupos de oferta. Logo esse fator n deve afetar a amostragem.
 
 ```{r}
 # Gráfico de barras para 'channel' por cada grupo de 'offer'
@@ -151,6 +177,8 @@ print(gg_zip_offer)
 ```
 
 Assim como a área a distribuição de 'Canal de Compra' é similar entre os grupos de oferta e não deve afetar a análise dos efeitos da campanha.
+
+------------------------------------------------------------------------
 
 ## Análise dos efeitos da Campanha
 
@@ -201,9 +229,65 @@ conversion_increase <- conversion_rates %>%
 conversion_increase
 ```
 
-
 Verificamos um aumento de 72% na taxa de conversão para campanha de descontos e 42% para a campanha BOGO em relação ao grupo de controle.
 
 Temos assim uma indicação inicial de que a campanha de BOGO pode não ser tão eficas para a conversão quanto um desconto tradicional.
 
 Porém precisamos analisar agora se apesar do menor impacto se o aumento no faturamento é superior (Já que apesar de ser equivalente a um desconto de 50% o BOGO leva a compra de 2 unidades).
+
+### Modelo Uplift:
+
+Vamos analisar agora, aplicando um modelo Uplift sem descrição da campanha de marketing enviada (analisando o efeito de ambas juntas)
+
+```{r}
+# Convertendo variáveis categóricas em dummies
+uplift_data <- vendas %>%
+  mutate(
+    channel = as.factor(channel),
+    zip_code = as.factor(zip_code),
+    treat = ifelse(offer == "No Offer", 0, 1),  # Indicador de tratamento binário
+    offerDiscount = ifelse(offer == "Discount", 1, 0),  # Tratamento específico para Discount
+    offerBOGO = ifelse(offer == "Buy One Get One", 1, 0)  # Tratamento específico para BOGO
+  ) %>%
+  model.matrix(~ channel + zip_code + treat + offerDiscount + offerBOGO - 1, data = .) %>%
+  as.data.frame() %>%
+  cbind(vendas, .) %>%
+  select(-c(channel, zip_code, offer))  # Removendo as colunas originais categóricas
+
+```
+
+```{r}
+head(uplift_data)
+```
+Definindo as variaveis preditoras:
+
+```{r}
+#Definindo variáveis preditoras:
+predictors <- setdiff(names(uplift_data), c("conversion", "treat", "offerDiscount", "offerBOGO"))
+```
+
+Aplicando o modelo Dual Uplift:
+
+```{r}
+# Ajustando o modelo DualUplift com os preditores e o resultado especificados
+
+dual_uplift_model <- DualUplift(
+  data = uplift_data,
+  treat = 'treat',  # especificando a coluna de tratamento
+  outcome = 'conversion',  # especificando a variável de resultado
+  predictors = predictors  # fornecendo a lista de preditores
+)
+
+# Imprimindo o resumo do modelo
+print(summary(dual_uplift_model))
+```
+
+Observando os resultados do nosso modelo para grupo de controle e campanhas combinadas:
+
+-As estatísticas são consistentes entre os grupos de controle e tratamento, com diferenças em magnitude e significância estatística em algumas variáveis.
+
+- De maneira geral todas as variáveis são significativas para o modelo.
+
+- channelWeb é excluido pois pode ser correlacionado as a ausência das outras categorias channel.
+
+
