@@ -50,6 +50,8 @@ Temos duas campanhas de marketing:
 
 - Uma campanha de marketing para a promoção de "Buy one get one" (BOGO).
 
+Vamos buscar entender sua eficácia e qual possui melhor desempenho.
+
 ```{r}
 vendas <- read.csv("data.csv")
 ```
@@ -503,9 +505,6 @@ performance_inter_uplift_discount <- PerformanceUplift(
   )
 ```
 
-```{r}
-performance_dual_uplift_bogo
-```
 ADICIONAR OS PLOTS E ANÁLISE DOS RESULTADOS:
 
 
@@ -513,9 +512,6 @@ ADICIONAR OS PLOTS E ANÁLISE DOS RESULTADOS:
 
 (Atenção aos valores dos eixos - campanhas de desconto tem um valor máximo maior)
 
-```{r}
-plot(performance_dual_uplift_bogo, type = "b", lwd = 1, col="blue4")
-```
 
 ```{r}
 # Configurar a área de plotagem para 4 gráficos (2x2)
@@ -539,15 +535,77 @@ par(mfrow=c(1,1))
 
 ```
 
-```{r}
+#### Avaliando a área de QINI:
 
+```{r}
+# Carregar o pacote tools4uplift, se necessário
+if (!require(tools4uplift)) {
+  install.packages("tools4uplift")
+  library(tools4uplift)
+}
+
+# Cálculo da Área Qini para cada modelo
+qini_bogo_dual <- round(QiniArea(performance_dual_uplift_bogo, adjusted=TRUE), 2)
+qini_discount_dual <- round(QiniArea(performance_dual_uplift_discount, adjusted=TRUE), 2)
+qini_bogo_inter <- round(QiniArea(performance_inter_uplift_bogo, adjusted=TRUE), 2)
+qini_discount_inter <- round(QiniArea(performance_inter_uplift_discount, adjusted=TRUE), 2)
+
+# Criando uma tabela para mostrar os valores
+qini_results <- data.frame(
+  Model = c("Dual Uplift BOGO", "Dual Uplift Discount", "Inter Uplift BOGO", "Inter Uplift Discount"),
+  Qini_Area = c(qini_bogo_dual, qini_discount_dual, qini_bogo_inter, qini_discount_inter)
+)
+
+# Imprimindo a tabela com os valores da área Qini
+print(qini_results)
+```
+
+Os modelos Two-model (Dual) e o Interaction (Inter) apresentaram resultados iguais entre si em termos de desempenho de Qini.
+
+Desta forma podemos seguir com qualquer um deles para maiores análises, vamos seguir com o Inter por ser no geral mais robusto.
+
+Com relação ao desempenho QINI da campanha de desconto ela apresenta um valor pior que "random targetting".
+
+## Comparação das Campanhas:
+
+```{r}
+barplot(performance_inter_uplift_bogo, col="blue4")
+```
+
+```{r}
+barplot(performance_inter_uplift_discount, col="red4")
+```
+
+```{r, include=FALSE}
+#>>>>>>>>>>Checando - Remover depois<<<<<<<<<<
+BinUplift(
+  data = uplift_treinamento_bogo,
+  treat = "treat",
+  outcome = "conversion",
+  x = "recency",
+  n.split = 100,
+  alpha = 0.05
+)
 ```
 
 
-```{r}
-barplot(performance_dual_uplift_bogo, col="blue4")
-```
 
 ## Conclusão:
 
-Apesar de as campanhas de marketing voltadas para promoção de disconto terem um resultado cumulativo melhor as campanhas de BOGO apresentam um desempenho uplift melhor, assim é necessário menor volume para um mesmo resultado para populações menores de marketing.
+Apesar das campanhas de marketing voltadas para promoção de disconto terem um resultado cumulativo melhor as campanhas de BOGO apresentam um desempenho uplift melhor, assim é necessário menor volume para um mesmo resultado para populações menores de marketing.
+
+Desta forma para campanhas que buscam apenas o maior efeito sem necessidade de otimização podemos preferir uma campanha de desconto.
+
+
+
+Checar: 
+
+- aprofundar análise comparativa entre campanhas, explicar diferenças entre os barplots, comportamento do uplift incremental do discount
+
+- rodar um terceiro modelo para comparação QINI-based uplift (qLHS) ?
+
+- aplicar "univariate quantization"?
+
+- análise de segmento?
+
+- 
