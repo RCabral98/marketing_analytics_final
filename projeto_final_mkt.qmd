@@ -44,6 +44,12 @@ https://www.kaggle.com/datasets/davinwijaya/customer-retention
 
 (A base é fictícia e foi criada para treinamento de análises e modelos preditivos)
 
+Temos duas campanhas de marketing:
+
+- Uma campanha de marketing para a promoção de desconto;
+
+- Uma campanha de marketing para a promoção de "Buy one get one" (BOGO).
+
 ```{r}
 vendas <- read.csv("data.csv")
 ```
@@ -234,9 +240,16 @@ Verificamos um aumento de 72% na taxa de conversão para campanha de descontos e
 
 Temos assim uma indicação inicial de que a campanha de BOGO pode não ser tão eficas para a conversão quanto um desconto tradicional.
 
-Porém precisamos analisar agora se apesar do menor impacto se o aumento no faturamento é superior (Já que apesar de ser equivalente a um desconto de 50% o BOGO leva a compra de 2 unidades).
+Porém precisamos analisar agora se apesar do menor impacto absoluto qual das campanhas apresenta maior potencial de uplift.
+
+Assim qual o efeito das campanhas de acordo com a população exposta.
+
 
 ### Vamos agora separar a base de acordo com os tratamentos para podermos realizar algumas análises individuais:
+
+- BOGO (Buy One Get One)
+
+- Discount (Desconto)
 
 ```{r}
 vendas_bogo <- vendas %>%
@@ -269,6 +282,10 @@ uplift_data <- vendas %>%
 
 #### Preparando as bases de dados para os conjuntos das 2 campanhas:
 
+- Transformamos as variáveis qualitativas em dummies (One-hot enconding)
+- Criamos uma variável "flag" para casos de tratamento
+- Removemos as variáveis que poderiam causar algum data leak no modelo.
+
 ```{r}
 uplift_data_bogo <- vendas_bogo %>% 
   mutate(
@@ -299,6 +316,7 @@ uplift_data_discount <- vendas_discount %>%
 ```{r}
 head(uplift_data)
 ```
+Separando as bases em treinamento e teste:
 
 ```{r}
 #Vamos separar a base em treinamento e teste para os modelos uplift:
@@ -444,9 +462,7 @@ uplift_test_bogo$predito_inter_uplift <- predicoes_inter_bogo
 uplift_test_discount$predito_inter_uplift <- predicoes_inter_discount
 ```
 
-
-### Vamos por fim analisar a performance do modelo após realizar as predições:
-
+### Vamos por fim analisar a performance dos modelos após realizar as predições:
 
 ```{r}
 
@@ -488,11 +504,50 @@ performance_inter_uplift_discount <- PerformanceUplift(
 ```
 
 ```{r}
-performance_inter_uplift_bogo
+performance_dual_uplift_bogo
 ```
 ADICIONAR OS PLOTS E ANÁLISE DOS RESULTADOS:
 
+
+### Curva de QINI:
+
+(Atenção aos valores dos eixos - campanhas de desconto tem um valor máximo maior)
+
 ```{r}
-plot(performance_dual_uplift_discount)
+plot(performance_dual_uplift_bogo, type = "b", lwd = 1, col="blue4")
 ```
 
+```{r}
+# Configurar a área de plotagem para 4 gráficos (2x2)
+par(mfrow=c(2,2))
+
+# Plotar cada gráfico de uplift
+# Uplift Dual BOGO
+plot(performance_dual_uplift_bogo, type = "b", lwd = 1, col="blue4", main="Dual Uplift - BOGO")
+
+# Uplift Dual Discount
+plot(performance_dual_uplift_discount, type = "b", lwd = 1, col="red4", main="Dual Uplift - Discount")
+
+# Uplift Inter BOGO
+plot(performance_inter_uplift_bogo, type = "b", lwd = 1, col="blue4", main="Inter Uplift - BOGO")
+
+# Uplift Inter Discount
+plot(performance_inter_uplift_discount, type = "b", lwd = 1, col="red4", main="Inter Uplift - Discount")
+
+# Restaurar configuração padrão do par
+par(mfrow=c(1,1))
+
+```
+
+```{r}
+
+```
+
+
+```{r}
+barplot(performance_dual_uplift_bogo, col="blue4")
+```
+
+## Conclusão:
+
+Apesar de as campanhas de marketing voltadas para promoção de disconto terem um resultado cumulativo melhor as campanhas de BOGO apresentam um desempenho uplift melhor, assim é necessário menor volume para um mesmo resultado para populações menores de marketing.
