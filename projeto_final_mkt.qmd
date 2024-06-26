@@ -417,6 +417,7 @@ print(summary(inter_uplift_model_discount))
 
 ```{r}
 #Vamos realizar as predições com os modelos gerados para analisar o resultado:
+set.seed(123)
 
 #Predições de modelos Dual Uplift:
 
@@ -470,7 +471,7 @@ performance_dual_uplift_bogo <- PerformanceUplift(
   treat = "treat", 
   outcome = "conversion", 
   prediction="predito_dual_uplift", 
-  nb.group = 15
+  nb.group = 50
   )
 
 performance_dual_uplift_discount <- PerformanceUplift(
@@ -478,7 +479,7 @@ performance_dual_uplift_discount <- PerformanceUplift(
   treat = "treat", 
   outcome = "conversion", 
   prediction="predito_dual_uplift", 
-  nb.group = 15
+  nb.group = 50
   )
 
 #Performance de modelos Inter Uplift:
@@ -488,7 +489,7 @@ performance_inter_uplift_bogo <- PerformanceUplift(
   treat = "treat", 
   outcome = "conversion", 
   prediction="predito_inter_uplift", 
-  nb.group = 15
+  nb.group = 50
   )
 
 performance_inter_uplift_discount <- PerformanceUplift(
@@ -496,7 +497,7 @@ performance_inter_uplift_discount <- PerformanceUplift(
   treat = "treat", 
   outcome = "conversion", 
   prediction="predito_inter_uplift", 
-  nb.group = 15
+  nb.group = 50
   )
 ```
 
@@ -533,12 +534,6 @@ par(mfrow=c(1,1))
 #### Avaliando a área de QINI:
 
 ```{r}
-# Carregar o pacote tools4uplift, se necessário
-if (!require(tools4uplift)) {
-  install.packages("tools4uplift")
-  library(tools4uplift)
-}
-
 # Cálculo da Área Qini para cada modelo
 qini_bogo_dual <- round(QiniArea(performance_dual_uplift_bogo, adjusted=TRUE), 2)
 qini_discount_dual <- round(QiniArea(performance_dual_uplift_discount, adjusted=TRUE), 2)
@@ -604,3 +599,90 @@ par(mfrow=c(1,1))
 Apesar das campanhas de marketing voltadas para promoção de disconto terem um resultado cumulativo melhor as campanhas de BOGO apresentam um desempenho uplift melhor, assim é necessário menor volume para um mesmo resultado para populações menores de marketing.
 
 Desta forma para campanhas que buscam apenas o maior efeito sem necessidade de otimização podemos preferir uma campanha de desconto.
+
+### Revisando distribuição de algumas variáveis com relação aos resultados:
+
+#### Uso de Desconto:
+
+```{r}
+# Preparação dos dados e cálculo das porcentagens para 'used_discount'
+data_for_plot_discount <- vendas %>%
+  filter(conversion == 1) %>%
+  group_by(offer, used_discount) %>%
+  summarise(Total = n(), .groups = 'drop') %>%
+  group_by(offer) %>%
+  mutate(Percent = (Total / sum(Total)) * 100)
+
+# Criando o gráfico de barras para porcentagem de distribuição de 'used_discount' para conversões positivas por tipo de oferta
+gg_discount_conversion_by_offer <- ggplot(data_for_plot_discount, aes(x = as.factor(used_discount), y = Percent, fill = as.factor(used_discount))) +
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.7) +
+  geom_text(aes(label = sprintf("%.1f%%", Percent)),
+            position = position_dodge(width = 0.7), vjust = -0.5, size = 3) +
+  labs(title = "Distribuição de Uso de Discount em Conversões Positivas por Tipo de Oferta",
+       x = "Used Discount (0 = Não Usado, 1 = Usado)",
+       y = "Percentual (%)") +
+  facet_wrap(~ offer, scales = "free_y") +
+  scale_fill_manual(values = c("0" = "red4", "1" = "blue4")) +
+  theme_minimal()
+
+# Imprimir o gráfico
+print(gg_discount_conversion_by_offer)
+
+```
+
+#### Uso de BOGO:
+
+```{r}
+# Preparação dos dados e cálculo das porcentagens de conversão para 'used_bogo'
+data_for_plot_bogo <- vendas %>%
+  filter(conversion == 1) %>%
+  group_by(offer, used_bogo) %>%
+  summarise(Total = n(), .groups = 'drop') %>%
+  group_by(offer) %>%
+  mutate(Percent = (Total / sum(Total)) * 100)
+
+# Criando o gráfico de barras para porcentagem de distribuição de 'used_bogo' para conversões positivas por tipo de oferta
+gg_bogo_conversion_by_offer <- ggplot(data_for_plot_bogo, aes(x = as.factor(used_bogo), y = Percent, fill = as.factor(used_bogo))) +
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.7) +
+  geom_text(aes(label = sprintf("%.1f%%", Percent)),
+            position = position_dodge(width = 0.7), vjust = -0.5, size = 3) +
+  labs(title = "Distribuição de Uso de BOGO em Conversões Positivas por Tipo de Oferta",
+       x = "Used BOGO (0 = Não Usado, 1 = Usado)",
+       y = "Percentual (%)") +
+  facet_wrap(~ offer, scales = "free_y") +
+  scale_fill_manual(values = c("0" = "red4", "1" = "blue4")) +
+  theme_minimal()
+
+# Imprimir o gráfico
+print(gg_bogo_conversion_by_offer)
+
+```
+
+
+#### Indicação de terceiros:
+
+```{r}
+# Preparação dos dados e cálculo das porcentagens de conversão para 'is_referral'
+data_for_plot_referral <- vendas %>%
+  filter(conversion == 1) %>%
+  group_by(offer, is_referral) %>%
+  summarise(Total = n(), .groups = 'drop') %>%
+  group_by(offer) %>%
+  mutate(Percent = (Total / sum(Total)) * 100)
+
+# Criando o gráfico de barras para porcentagem de distribuição de 'is_referral' para conversões positivas por tipo de oferta
+gg_referral_conversion_by_offer <- ggplot(data_for_plot_referral, aes(x = as.factor(is_referral), y = Percent, fill = as.factor(is_referral))) +
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.7) +
+  geom_text(aes(label = sprintf("%.1f%%", Percent)),
+            position = position_dodge(width = 0.7), vjust = -0.5, size = 3) +
+  labs(title = "Distribuição de Referências em Conversões Positivas por Tipo de Oferta",
+       x = "Is Referral (0 = Não, 1 = Sim)",
+       y = "Percentual (%)") +
+  facet_wrap(~ offer, scales = "free_y") +
+  scale_fill_manual(values = c("0" = "red4", "1" = "blue4")) +
+  theme_minimal()
+
+# Imprimir o gráfico
+print(gg_referral_conversion_by_offer)
+```
+
