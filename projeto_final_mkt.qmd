@@ -471,7 +471,7 @@ performance_dual_uplift_bogo <- PerformanceUplift(
   treat = "treat", 
   outcome = "conversion", 
   prediction="predito_dual_uplift", 
-  nb.group = 50
+  nb.group = 30
   )
 
 performance_dual_uplift_discount <- PerformanceUplift(
@@ -479,7 +479,7 @@ performance_dual_uplift_discount <- PerformanceUplift(
   treat = "treat", 
   outcome = "conversion", 
   prediction="predito_dual_uplift", 
-  nb.group = 50
+  nb.group = 30
   )
 
 #Performance de modelos Inter Uplift:
@@ -489,7 +489,7 @@ performance_inter_uplift_bogo <- PerformanceUplift(
   treat = "treat", 
   outcome = "conversion", 
   prediction="predito_inter_uplift", 
-  nb.group = 50
+  nb.group = 30
   )
 
 performance_inter_uplift_discount <- PerformanceUplift(
@@ -497,11 +497,9 @@ performance_inter_uplift_discount <- PerformanceUplift(
   treat = "treat", 
   outcome = "conversion", 
   prediction="predito_inter_uplift", 
-  nb.group = 50
+  nb.group = 30
   )
 ```
-
-ADICIONAR OS PLOTS E ANÁLISE DOS RESULTADOS:
 
 
 ### Curva de QINI:
