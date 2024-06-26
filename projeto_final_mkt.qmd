@@ -578,14 +578,25 @@ par(mfrow=c(1,1))
 
 ```
 
-
-
 ```{r}
-barplot(performance_inter_uplift_bogo, col="blue4", main = "Variação Uplift Incremental - BOGO")
-```
+# Obtenha os valores máximos e mínimos dos dados para ambos os gráficos
+max_value <- max(max(performance_inter_uplift_bogo$uplift), max(performance_inter_uplift_discount$uplift))
+min_value <- min(min(performance_inter_uplift_bogo$uplift), min(performance_inter_uplift_discount$uplift))
 
-```{r}
-barplot(performance_inter_uplift_discount, col="red4", main="Variação Uplift Incremental - Discount")
+# Configurando a área de plotagem para dois gráficos lado a lado
+par(mfrow=c(1,2))
+
+# Primeiro gráfico para BOGO
+barplot(performance_inter_uplift_bogo, col="blue4", main="Variação Uplift Incremental - BOGO",
+        ylim=c(min_value, max_value))
+
+# Segundo gráfico para Discount
+barplot(performance_inter_uplift_discount, col="red4", main="Variação Uplift Incremental - Discount",
+        ylim=c(min_value, max_value))
+
+# Restaurar configuração padrão do par
+par(mfrow=c(1,1))
+
 ```
 
 ## Conclusão:
@@ -593,7 +604,3 @@ barplot(performance_inter_uplift_discount, col="red4", main="Variação Uplift I
 Apesar das campanhas de marketing voltadas para promoção de disconto terem um resultado cumulativo melhor as campanhas de BOGO apresentam um desempenho uplift melhor, assim é necessário menor volume para um mesmo resultado para populações menores de marketing.
 
 Desta forma para campanhas que buscam apenas o maior efeito sem necessidade de otimização podemos preferir uma campanha de desconto.
-
-
-## Análise de variáveis:
-
