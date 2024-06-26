@@ -324,12 +324,8 @@ Separando as bases em treinamento e teste:
 #Vamos separar a base em treinamento e teste para os modelos uplift:
 set.seed(123)
 
-split_uplift <- SplitUplift(data = uplift_data, p = 0.8, group = c("treat", "conversion"))
 split_uplift_bogo <- SplitUplift(data = uplift_data_bogo, p = 0.8, group = c("treat", "conversion"))
 split_uplift_discount <- SplitUplift(data = uplift_data_discount, p = 0.8, group = c("treat", "conversion"))
-
-uplift_treinamento <- split_uplift[[1]]
-uplift_teste <- split_uplift[[2]]
 
 uplift_treinamento_bogo <- split_uplift_bogo[[1]]
 uplift_test_bogo <- split_uplift_bogo[[2]]
@@ -342,7 +338,6 @@ Definindo as variaveis preditoras:
 
 ```{r}
 #Definindo variáveis preditoras:
-predictors <- setdiff(names(uplift_treinamento), c("conversion", "treat", "offerDiscount", "offerBOGO"))
 
 predictors_bogo <- setdiff(names(uplift_treinamento_bogo), c("conversion", "treat"))
 predictors_discount <- setdiff(names(uplift_treinamento_discount), c("conversion", "treat"))
@@ -569,26 +564,29 @@ Com relação ao desempenho QINI da campanha de desconto ela apresenta um valor 
 ## Comparação das Campanhas:
 
 ```{r}
-barplot(performance_inter_uplift_bogo, col="blue4")
+# Configurando a área de plotagem para dois gráficos lado a lado
+par(mfrow=c(1,2))
+
+# Plotar o gráfico de Qini para a campanha BOGO usando o modelo Inter Uplift
+plot(performance_inter_uplift_bogo, type = "l", lwd = 2, col="blue", main="Qini - BOGO Campaign")
+
+# Plotar o gráfico de Qini para a campanha Discount usando o modelo Inter Uplift
+plot(performance_inter_uplift_discount, type = "l", lwd = 2, col="red", main="Qini - Discount Campaign")
+
+# Restaurar configuração padrão do par
+par(mfrow=c(1,1))
+
+```
+
+
+
+```{r}
+barplot(performance_inter_uplift_bogo, col="blue4", main = "Variação Uplift Incremental - BOGO")
 ```
 
 ```{r}
-barplot(performance_inter_uplift_discount, col="red4")
+barplot(performance_inter_uplift_discount, col="red4", main="Variação Uplift Incremental - Discount")
 ```
-
-```{r, include=FALSE}
-#>>>>>>>>>>Checando - Remover depois<<<<<<<<<<
-BinUplift(
-  data = uplift_treinamento_bogo,
-  treat = "treat",
-  outcome = "conversion",
-  x = "recency",
-  n.split = 100,
-  alpha = 0.05
-)
-```
-
-
 
 ## Conclusão:
 
@@ -597,15 +595,5 @@ Apesar das campanhas de marketing voltadas para promoção de disconto terem um 
 Desta forma para campanhas que buscam apenas o maior efeito sem necessidade de otimização podemos preferir uma campanha de desconto.
 
 
+## Análise de variáveis:
 
-Checar: 
-
-- aprofundar análise comparativa entre campanhas, explicar diferenças entre os barplots, comportamento do uplift incremental do discount
-
-- rodar um terceiro modelo para comparação QINI-based uplift (qLHS) ?
-
-- aplicar "univariate quantization"?
-
-- análise de segmento?
-
-- 
